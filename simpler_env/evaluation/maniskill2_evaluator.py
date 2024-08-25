@@ -146,9 +146,11 @@ def run_maniskill2_eval_single_episode(
         img_render_avg_time += (end_time-start)
 
     if timestep > 0:
+        total_render = img_render_avg_time
         img_render_avg_time = img_render_avg_time/timestep
     episode_stats = info.get("episode_stats", {})
     episode_stats.update({"img_render_avg": img_render_avg_time})
+    episode_stats.update({"total_render": total_render})
 
     # save result
     env_save_name = env_name
