@@ -10,7 +10,7 @@ from transforms3d.euler import quat2euler
 from simpler_env.utils.env.env_builder import build_maniskill2_env, get_robot_control_mode
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
 from simpler_env.utils.visualization import write_video
-
+import time
 
 def run_maniskill2_eval_single_episode(
     model,
@@ -35,6 +35,7 @@ def run_maniskill2_eval_single_episode(
     enable_raytracing=False,
     additional_env_save_tags=None,
     logging_dir="./results",
+    save_videos=False
 ):
 
     if additional_env_build_kwargs is None:
@@ -96,7 +97,8 @@ def run_maniskill2_eval_single_episode(
 
     # Initialize logging
     image = get_image_from_maniskill2_obs_dict(env, obs, camera_name=obs_camera_name)
-    images = [image]
+    if save_videos:
+        images = [image]
     predicted_actions = []
     predicted_terminated, done, truncated = False, False, False
 
@@ -104,6 +106,7 @@ def run_maniskill2_eval_single_episode(
     model.reset(task_description)
 
     timestep = 0
+    img_render_avg_time = 0
     success = "failure"
 
     # Step the environment
@@ -132,13 +135,22 @@ def run_maniskill2_eval_single_episode(
 
         print(timestep, info)
 
+        # if save_videos:
+        start = time.time()
         image = get_image_from_maniskill2_obs_dict(env, obs, camera_name=obs_camera_name)
-        images.append(image)
+        end_time = time.time()
+        if save_videos:
+            images.append(image)
         timestep += 1
 
-    episode_stats = info.get("episode_stats", {})
+        img_render_avg_time += (end_time-start)
 
-    # save video
+    if timestep > 0:
+        img_render_avg_time = img_render_avg_time/timestep
+    episode_stats = info.get("episode_stats", {})
+    episode_stats.update({"img_render_avg": img_render_avg_time})
+
+    # save result
     env_save_name = env_name
     for k, v in additional_env_build_kwargs.items():
         env_save_name = env_save_name + f"_{k}_{v}"
@@ -147,27 +159,40 @@ def run_maniskill2_eval_single_episode(
     ckpt_path_basename = ckpt_path if ckpt_path[-1] != "/" else ckpt_path[:-1]
     ckpt_path_basename = ckpt_path_basename.split("/")[-1]
     if obj_variation_mode == "xy":
-        video_name = f"{success}_obj_{obj_init_x}_{obj_init_y}"
+        result_name = f"{success}_obj_{obj_init_x}_{obj_init_y}"
     elif obj_variation_mode == "episode":
-        video_name = f"{success}_obj_episode_{obj_episode_id}"
+        result_name = f"{success}_obj_episode_{obj_episode_id}"
     for k, v in episode_stats.items():
-        video_name = video_name + f"_{k}_{v}"
-    video_name = video_name + ".mp4"
+        result_name = result_name + f"_{k}_{v}"
+
+    # save video
+    video_name = result_name + ".mp4"
     if rgb_overlay_path is not None:
         rgb_overlay_path_str = os.path.splitext(os.path.basename(rgb_overlay_path))[0]
     else:
         rgb_overlay_path_str = "None"
     r, p, y = quat2euler(robot_init_quat)
-    video_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
-    video_path = os.path.join(logging_dir, video_path)
-    write_video(video_path, images, fps=5)
 
-    # save action trajectory
-    action_path = video_path.replace(".mp4", ".png")
-    action_root = os.path.dirname(action_path) + "/actions/"
-    os.makedirs(action_root, exist_ok=True)
-    action_path = action_root + os.path.basename(action_path)
-    model.visualize_epoch(predicted_actions, images, save_path=action_path)
+    if save_videos:
+        video_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
+        video_path = os.path.join(logging_dir, video_path)
+        write_video(video_path, images, fps=5)
+
+        # save action trajectory
+        action_path = video_path.replace(".mp4", ".png")
+        action_root = os.path.dirname(action_path) + "/actions/"
+        os.makedirs(action_root, exist_ok=True)
+        action_path = action_root + os.path.basename(action_path)
+        model.visualize_epoch(predicted_actions, images, save_path=action_path)
+    else:
+        result_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}"
+        result_path = os.path.join(logging_dir, result_path)
+        if not os.path.isdir(result_path):
+            os.makedirs(result_path)
+        result_file = os.path.join(result_path, "results.txt")
+
+        with open(result_file, "a") as f:
+            f.write("{}\n".format(result_name))
 
     return success == "success"
 
@@ -199,6 +224,7 @@ def maniskill2_evaluator(model, args):
                     additional_env_save_tags=args.additional_env_save_tags,
                     obs_camera_name=args.obs_camera_name,
                     logging_dir=args.logging_dir,
+                    save_videos=args.save_videos
                 )
                 if args.obj_variation_mode == "xy":
                     for obj_init_x in args.obj_init_xs:
