@@ -5,7 +5,7 @@ from sapien.core import Pose
 from transforms3d.euler import euler2quat
 
 from simpler_env.utils.io import DictAction
-
+from pdb import set_trace as st
 
 def parse_range_tuple(t):
     return np.linspace(t[0], t[1], int(t[2]))
@@ -113,9 +113,11 @@ def get_args():
     parser.add_argument("--logging-dir", type=str, default="./results")
     parser.add_argument("--tf-memory-limit", type=int, default=3072, help="Tensorflow memory limit")
     parser.add_argument("--octo-init-rng", type=int, default=0, help="Octo init rng seed")
+    parser.add_argument("--save-videos", type=bool, default=False)
+
 
     args = parser.parse_args()
-
+    
     # env args: robot pose
     args.robot_init_xs = parse_range_tuple(args.robot_init_x_range)
     args.robot_init_ys = parse_range_tuple(args.robot_init_y_range)
@@ -134,5 +136,5 @@ def get_args():
             args.additional_env_save_tags = f"obs_camera_{args.obs_camera_name}"
         else:
             args.additional_env_save_tags = args.additional_env_save_tags + f"_obs_camera_{args.obs_camera_name}"
-
+    
     return args

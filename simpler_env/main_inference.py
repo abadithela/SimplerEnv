@@ -1,5 +1,7 @@
 import os
 
+# os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import numpy as np
 import tensorflow as tf
 
@@ -7,7 +9,7 @@ from simpler_env.evaluation.argparse import get_args
 from simpler_env.evaluation.maniskill2_evaluator import maniskill2_evaluator
 from simpler_env.policies.octo.octo_server_model import OctoServerInference
 from simpler_env.policies.rt1.rt1_model import RT1Inference
-
+from pdb import set_trace as st
 try:
     from simpler_env.policies.octo.octo_model import OctoInference
 except ImportError as e:
@@ -22,6 +24,7 @@ if __name__ == "__main__":
     # prevent a single jax process from taking up all the GPU memory
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     gpus = tf.config.list_physical_devices("GPU")
+    
     if len(gpus) > 0:
         # prevent a single tf process from taking up all the GPU memory
         tf.config.set_logical_device_configuration(
@@ -57,6 +60,7 @@ if __name__ == "__main__":
         raise NotImplementedError()
 
     # run real-to-sim evaluation
+
     success_arr = maniskill2_evaluator(model, args)
     print(args)
     print(" " * 10, "Average success", np.mean(success_arr))
