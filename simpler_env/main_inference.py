@@ -16,9 +16,11 @@ except ImportError as e:
     print("Octo is not correctly imported.")
     print(e)
 
+import wandb
 
 if __name__ == "__main__":
     args = get_args()
+    wandb.init()
 
     os.environ["DISPLAY"] = ""
     # prevent a single jax process from taking up all the GPU memory
@@ -64,3 +66,5 @@ if __name__ == "__main__":
     success_arr = maniskill2_evaluator(model, args)
     print(args)
     print(" " * 10, "Average success", np.mean(success_arr))
+
+    wandb.finish()

@@ -1,6 +1,6 @@
 
 
-gpu_id=0
+gpu_id="0,1,2,3"
 
 declare -a arr=("./checkpoints/rt_1_tf_trained_for_000400120/" \
                 "./checkpoints/rt_1_tf_trained_for_000058240/" \
