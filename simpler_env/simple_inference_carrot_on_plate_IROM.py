@@ -22,15 +22,16 @@ from pdb import set_trace as st
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small"])
+parser.add_argument("--policy", default="octo-base", choices=["rt1", "octo-base", "octo-small"])
 parser.add_argument(
     "--ckpt-path",
     type=str,
-    default="./checkpoints/rt_1_x_tf_trained_for_002272480_step/",
+    default=None,
 )
+
 parser.add_argument(
     "--task",
-    default="google_robot_pick_horizontal_coke_can",
+    default="irom_widowx_carrot_on_plate",
     choices=ENVIRONMENTS,
 )
 parser.add_argument("--logging-root", type=str, default="./results_simple_random_eval")
@@ -38,7 +39,7 @@ parser.add_argument("--tf-memory-limit", type=int, default=3072)
 parser.add_argument("--n-trajs", type=int, default=10)
 
 args = parser.parse_args()
-st()
+
 if args.policy in ["octo-base", "octo-small"]:
     if args.ckpt_path in [None, "None"] or "rt_1_x" in args.ckpt_path:
         args.ckpt_path = args.policy

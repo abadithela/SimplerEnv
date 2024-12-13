@@ -6,6 +6,7 @@ import numpy as np
 import sapien.core as sapien
 from sapien.utils.viewer import Viewer
 
+from pdb import set_trace as st
 
 def build_actor(
     model_dir: str,
@@ -72,7 +73,7 @@ def demo(model_dir):
     camera.set_focal_lengths(605.12, 604.91)
     camera.set_principal_point(424.59, 236.67)
     camera.set_parent(parent=obj, keep_pose=False)
-
+    st()
     while not viewer.closed:
         for _ in range(4):  # render every 4 steps
             scene.step()
@@ -91,6 +92,27 @@ def main():
 
     demo(args.model_dir)
 
+def main_carrot():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model-dir",
+        type=str,
+        default="ManiSkill2_real2sim/data/custom/models/bridge_carrot_generated",
+    )
+    args = parser.parse_args()
+
+    demo(args.model_dir)
+
+def main_plate():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model-dir",
+        type=str,
+        default="ManiSkill2_real2sim/data/custom/models/bridge_plate_objaverse",
+    )
+    args = parser.parse_args()
+
+    demo(args.model_dir)
 
 if __name__ == "__main__":
-    main()
+    main_plate()

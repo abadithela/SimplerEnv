@@ -3,6 +3,7 @@ import time
 import numpy as np
 import sapien.core as sapien
 from sapien.utils.viewer import Viewer
+from pdb import set_trace as st
 
 def demo(fix_root_link, balance_passive_force):
     engine = sapien.Engine()
@@ -30,7 +31,13 @@ def demo(fix_root_link, balance_passive_force):
     robot: sapien.Articulation = loader.load(
         "ManiSkill2_real2sim/mani_skill2_real2sim/assets/descriptions/widowx_description/wx250s.urdf"
     )
-    
+    with open("widowx_robot.txt", "w") as f:
+        print("Robot Links \n",file=f)
+        print(robot.get_links(), file=f)
+        print("\n",file=f)
+        print("Active Joints \n",file=f)
+        print([x.name for x in robot.get_active_joints()], file=f)
+
     print(robot.get_links())
     robot.set_root_pose(sapien.Pose([0, 0, 0.2], [1, 0, 0, 0]))
     print([x.name for x in robot.get_active_joints()])
@@ -56,7 +63,7 @@ def demo(fix_root_link, balance_passive_force):
     robot.set_qpos(qpos)
     for joint in robot.get_active_joints():
         joint.set_drive_property(stiffness=1e5, damping=1e3)
-
+    st()
     while not viewer.closed:
         print(robot.get_qpos())
         for _ in range(4):  # render every 4 steps
