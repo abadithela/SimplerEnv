@@ -31,7 +31,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--task",
-    default="irom_widowx_carrot_on_plate",
+    default="widowx_carrot_on_plate",
     choices=ENVIRONMENTS,
 )
 parser.add_argument("--logging-root", type=str, default="./results_simple_random_eval")
@@ -76,7 +76,6 @@ if args.policy == "rt1":
     model = RT1Inference(saved_model_path=args.ckpt_path, policy_setup=policy_setup)
 elif "octo" in args.policy:
     from simpler_env.policies.octo.octo_model import OctoInference
-
     model = OctoInference(model_type=args.ckpt_path, policy_setup=policy_setup, init_rng=0)
 else:
     raise NotImplementedError()
@@ -99,7 +98,7 @@ for ep_id in range(args.n_trajs):
     while not (predicted_terminated or truncated):
         # step the model; "raw_action" is raw model action output; "action" is the processed action to be sent into maniskill env
         raw_action, action = model.step(image, instruction)
-        
+        st()
         predicted_terminated = bool(action["terminate_episode"][0] > 0)
         if predicted_terminated:
             if not is_final_subtask:
@@ -110,6 +109,7 @@ for ep_id in range(args.n_trajs):
         obs, reward, success, truncated, info = env.step(
             np.concatenate([action["world_vector"], action["rot_axangle"], action["gripper"]]),
         )
+        
         print(timestep, info)
         new_instruction = env.get_language_instruction()
         if new_instruction != instruction:
@@ -125,7 +125,7 @@ for ep_id in range(args.n_trajs):
     episode_stats = info.get("episode_stats", {})
     success_arr.append(success)
     print(f"Episode {ep_id} success: {success}")
-    media.write_video(f"{logging_dir}/normal_episode_{ep_id}_success_{success}.mp4", images, fps=5)
+    media.write_video(f"{logging_dir}/episode_{ep_id}_success_{success}.mp4", images, fps=5)
 
 print(
     "**Overall Success**",

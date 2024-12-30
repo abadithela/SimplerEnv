@@ -63,7 +63,7 @@ def demo(fix_root_link, balance_passive_force):
     robot.set_qpos(qpos)
     for joint in robot.get_active_joints():
         joint.set_drive_property(stiffness=1e5, damping=1e3)
-    st()
+    
     while not viewer.closed:
         print(robot.get_qpos())
         for _ in range(4):  # render every 4 steps

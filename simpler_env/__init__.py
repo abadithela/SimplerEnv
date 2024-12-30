@@ -68,7 +68,7 @@ ENVIRONMENT_MAP = {
     "widowx_carrot_on_plate": ("PutCarrotOnPlateInScene-v0", {}),
     "widowx_stack_cube": ("StackGreenCubeOnYellowCubeBakedTexInScene-v0", {}),
     "widowx_put_eggplant_in_basket": ("PutEggplantInBasketScene-v0", {}),
-    "irom_widowx_carrot_on_plate": ("PutCarrotOnPlateInScene-v0_IROM", {})
+    "irom_widowx_carrot_on_plate": ("PutCarrotOnPlateInScene-v0_IROM", {"robot": "irom_widowx"})
 }
 
 
