@@ -4,7 +4,7 @@ Obtain dataset trajectory samples and save them for system identification.
 
 import argparse
 import pickle
-
+from pdb import set_trace as st
 import numpy as np
 from sapien.core import Pose
 import tensorflow_datasets as tfds
@@ -24,6 +24,8 @@ def dataset2path(dataset_name):
         version = "0.1.0"
     return f"gs://gresearch/robotics/{dataset_name}/{version}"
 
+def custom_dataset(dataset_name="bridge"):
+    return f"gs://rail.eecs.berkeley.edu/datasets/bridge_release/data/tfds/{dataset_name}_dataset/1.0.0"
 
 if __name__ == "__main__":
     """
@@ -38,7 +40,8 @@ if __name__ == "__main__":
     dataset_name = args.dataset_name
     assert dataset_name in DATASETS
     dset = tfds.builder_from_directory(builder_dir=dataset2path(dataset_name))
-
+    # dset = tfds.builder_from_directory(builder_dir=custom_dataset(dataset_name))
+    
     dset = dset.as_dataset(split="train", read_config=tfds.ReadConfig(add_tfds_id=True))
     dset_iter = iter(dset)
     iter_episode_id = -1
@@ -78,6 +81,7 @@ if __name__ == "__main__":
 
         to_save = []
         episode_steps = list(episode["steps"])
+        
         for j, episode_step in enumerate(episode_steps):
             if dataset_name == "fractal20220817_data":
                 if j == 0:
@@ -98,6 +102,7 @@ if __name__ == "__main__":
                     "action_rotation_delta": np.array(episode_step["action"]["rotation_delta"], dtype=np.float64),
                     # 'action_gripper': np.array(episode_step['action']['gripper_closedness_action'], dtype=np.float64), # 1=close; -1=open
                 }
+                
             elif dataset_name == "bridge":
                 mat_transform = np.array(
                     [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]],

@@ -12,8 +12,8 @@ from simpler_env.utils.env.env_builder import (
     get_robot_control_mode,
 )
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
-from simpler_env.utils.visualization import write_interval_video, write_video
-
+from simpler_env.utils.visualization import write_video
+import time
 
 def run_maniskill2_eval_single_episode(
     model,
@@ -141,11 +141,12 @@ def run_maniskill2_eval_single_episode(
 
         print(timestep, info)
 
-        image = get_image_from_maniskill2_obs_dict(
-            env, obs, camera_name=obs_camera_name
-        )
-        images.append(image)
-        task_descriptions.append(task_description)
+        # if save_videos:
+        start = time.time()
+        image = get_image_from_maniskill2_obs_dict(env, obs, camera_name=obs_camera_name)
+        end_time = time.time()
+        if save_videos:
+            images.append(image)
         timestep += 1
 
         img_render_avg_time += (end_time-start)
@@ -180,16 +181,28 @@ def run_maniskill2_eval_single_episode(
     else:
         rgb_overlay_path_str = "None"
     r, p, y = quat2euler(robot_init_quat)
-    video_path = f"{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
-    video_path = os.path.join(logging_dir, video_path)
-    write_video(video_path, images, fps=5)
 
-    # save action trajectory
-    action_path = video_path.replace(".mp4", ".png")
-    action_root = os.path.dirname(action_path) + "/actions/"
-    os.makedirs(action_root, exist_ok=True)
-    action_path = action_root + os.path.basename(action_path)
-    model.visualize_epoch(predicted_actions, images, save_path=action_path)
+    if save_videos:
+        video_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
+        video_path = os.path.join(logging_dir, video_path)
+        write_video(video_path, images, fps=5)
+
+        # save action trajectory
+        action_path = video_path.replace(".mp4", ".png")
+        action_root = os.path.dirname(action_path) + "/actions/"
+        os.makedirs(action_root, exist_ok=True)
+        action_path = action_root + os.path.basename(action_path)
+        model.visualize_epoch(predicted_actions, images, save_path=action_path)
+    else:
+        result_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}"
+        result_path = os.path.join(logging_dir, result_path)
+        if not os.path.isdir(result_path):
+            os.makedirs(result_path)
+        result_file = os.path.join(result_path, "results.txt")
+
+        with open(result_file, "a") as f:
+            f.write("{}\n".format(result_name))
+
     return success == "success"
 
 

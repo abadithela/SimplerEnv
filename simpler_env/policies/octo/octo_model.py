@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 from transforms3d.euler import euler2axangle
 
 from simpler_env.utils.action.action_ensemble import ActionEnsembler
-
+from pdb import set_trace as st
 
 class OctoInference:
     def __init__(
@@ -166,19 +166,17 @@ class OctoInference:
             rng=key,
         )
         raw_actions = norm_raw_actions * self.action_std[None] + self.action_mean[None]
+        
         raw_actions = raw_actions[0]  # remove batch, becoming (action_pred_horizon, action_dim)
-
         assert raw_actions.shape == (self.pred_action_horizon, 7)
         if self.action_ensemble:
             raw_actions = self.action_ensembler.ensemble_action(raw_actions)
             raw_actions = raw_actions[None]  # [1, 7]
-
         raw_action = {
             "world_vector": np.array(raw_actions[0, :3]),
             "rotation_delta": np.array(raw_actions[0, 3:6]),
             "open_gripper": np.array(raw_actions[0, 6:7]),  # range [0, 1]; 1 = open; 0 = close
         }
-
         # process raw_action to obtain the action to be sent to the maniskill2 environment
         action = {}
         action["world_vector"] = raw_action["world_vector"] * self.action_scale

@@ -22,15 +22,16 @@ from pdb import set_trace as st
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small"])
+parser.add_argument("--policy", default="octo-base", choices=["rt1", "octo-base", "octo-small"])
 parser.add_argument(
     "--ckpt-path",
     type=str,
-    default="./checkpoints/rt_1_x_tf_trained_for_002272480_step/",
+    default=None,
 )
+
 parser.add_argument(
     "--task",
-    default="google_robot_pick_horizontal_coke_can",
+    default="irom_widowx_carrot_on_plate",
     choices=ENVIRONMENTS,
 )
 parser.add_argument("--logging-root", type=str, default="./results_simple_random_eval")
@@ -38,7 +39,7 @@ parser.add_argument("--tf-memory-limit", type=int, default=3072)
 parser.add_argument("--n-trajs", type=int, default=10)
 
 args = parser.parse_args()
-st()
+
 if args.policy in ["octo-base", "octo-small"]:
     if args.ckpt_path in [None, "None"] or "rt_1_x" in args.ckpt_path:
         args.ckpt_path = args.policy
@@ -98,6 +99,7 @@ for ep_id in range(args.n_trajs):
     while not (predicted_terminated or truncated):
         # step the model; "raw_action" is raw model action output; "action" is the processed action to be sent into maniskill env
         raw_action, action = model.step(image, instruction)
+        
         predicted_terminated = bool(action["terminate_episode"][0] > 0)
         if predicted_terminated:
             if not is_final_subtask:
@@ -123,7 +125,7 @@ for ep_id in range(args.n_trajs):
     episode_stats = info.get("episode_stats", {})
     success_arr.append(success)
     print(f"Episode {ep_id} success: {success}")
-    media.write_video(f"{logging_dir}/episode_{ep_id}_success_{success}.mp4", images, fps=5)
+    media.write_video(f"{logging_dir}/normal_episode_{ep_id}_success_{success}.mp4", images, fps=5)
 
 print(
     "**Overall Success**",

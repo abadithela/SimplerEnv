@@ -7,12 +7,9 @@ import os
 import numpy as np
 from transforms3d.euler import quat2euler
 
-from simpler_env.utils.env.env_builder import (
-    build_maniskill2_env,
-    get_robot_control_mode,
-)
+from simpler_env.utils.env.env_builder import build_maniskill2_env, get_robot_control_mode
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
-from simpler_env.utils.visualization import write_interval_video, write_video
+from simpler_env.utils.visualization import write_video
 
 
 def run_maniskill2_eval_single_episode(
@@ -38,8 +35,8 @@ def run_maniskill2_eval_single_episode(
     enable_raytracing=False,
     additional_env_save_tags=None,
     logging_dir="./results",
-    save_videos=False
 ):
+
     if additional_env_build_kwargs is None:
         additional_env_build_kwargs = {}
 
@@ -65,7 +62,7 @@ def run_maniskill2_eval_single_episode(
         **additional_env_build_kwargs,
         **kwargs,
     )
-    # __import__('ipdb').set_trace()
+
     # initialize environment
     env_reset_options = {
         "robot_init_options": {
@@ -87,7 +84,7 @@ def run_maniskill2_eval_single_episode(
         }
     obs, _ = env.reset(options=env_reset_options)
     # for long-horizon environments, we check if the current subtask is the final subtask
-    is_final_subtask = env.is_final_subtask()
+    is_final_subtask = env.is_final_subtask() 
 
     # Obtain language instruction
     if instruction is not None:
@@ -99,8 +96,7 @@ def run_maniskill2_eval_single_episode(
 
     # Initialize logging
     image = get_image_from_maniskill2_obs_dict(env, obs, camera_name=obs_camera_name)
-    if save_videos:
-        images = [image]
+    images = [image]
     predicted_actions = []
     predicted_terminated, done, truncated = False, False, False
 
@@ -108,12 +104,9 @@ def run_maniskill2_eval_single_episode(
     model.reset(task_description)
 
     timestep = 0
-    img_render_avg_time = 0
     success = "failure"
-    # action_ensemble = model.action_ensemble_temp  if hasattr(model, "action_ensemble") else "none"
 
     # Step the environment
-    task_descriptions = []
     while not (predicted_terminated or truncated):
         # step the model; "raw_action" is raw model action output; "action" is the processed action to be sent into maniskill env
         raw_action, action = model.step(image, task_description)
@@ -127,11 +120,9 @@ def run_maniskill2_eval_single_episode(
 
         # step the environment
         obs, reward, done, truncated, info = env.step(
-            np.concatenate(
-                [action["world_vector"], action["rot_axangle"], action["gripper"]]
-            ),
+            np.concatenate([action["world_vector"], action["rot_axangle"], action["gripper"]]),
         )
-
+        
         success = "success" if done else "failure"
         new_task_description = env.get_language_instruction()
         if new_task_description != task_description:
@@ -141,25 +132,14 @@ def run_maniskill2_eval_single_episode(
 
         print(timestep, info)
 
-        image = get_image_from_maniskill2_obs_dict(
-            env, obs, camera_name=obs_camera_name
-        )
+        image = get_image_from_maniskill2_obs_dict(env, obs, camera_name=obs_camera_name)
         images.append(image)
-        task_descriptions.append(task_description)
         timestep += 1
 
-        img_render_avg_time += (end_time-start)
-
-    if timestep > 0:
-        total_render = img_render_avg_time
-        img_render_avg_time = img_render_avg_time/timestep
     episode_stats = info.get("episode_stats", {})
-    episode_stats.update({"img_render_avg": img_render_avg_time})
-    episode_stats.update({"total_render": total_render})
 
-    # save result
+    # save video
     env_save_name = env_name
-
     for k, v in additional_env_build_kwargs.items():
         env_save_name = env_save_name + f"_{k}_{v}"
     if additional_env_save_tags is not None:
@@ -167,20 +147,18 @@ def run_maniskill2_eval_single_episode(
     ckpt_path_basename = ckpt_path if ckpt_path[-1] != "/" else ckpt_path[:-1]
     ckpt_path_basename = ckpt_path_basename.split("/")[-1]
     if obj_variation_mode == "xy":
-        result_name = f"{success}_obj_{obj_init_x}_{obj_init_y}"
+        video_name = f"{success}_obj_{obj_init_x}_{obj_init_y}"
     elif obj_variation_mode == "episode":
-        result_name = f"{success}_obj_episode_{obj_episode_id}"
+        video_name = f"{success}_obj_episode_{obj_episode_id}"
     for k, v in episode_stats.items():
-        result_name = result_name + f"_{k}_{v}"
-
-    # save video
-    video_name = result_name + ".mp4"
+        video_name = video_name + f"_{k}_{v}"
+    video_name = video_name + ".mp4"
     if rgb_overlay_path is not None:
         rgb_overlay_path_str = os.path.splitext(os.path.basename(rgb_overlay_path))[0]
     else:
         rgb_overlay_path_str = "None"
     r, p, y = quat2euler(robot_init_quat)
-    video_path = f"{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
+    video_path = f"{ckpt_path_basename}/{scene_name}/{control_mode}/{env_save_name}/rob_{robot_init_x}_{robot_init_y}_rot_{r:.3f}_{p:.3f}_{y:.3f}_rgb_overlay_{rgb_overlay_path_str}/{video_name}"
     video_path = os.path.join(logging_dir, video_path)
     write_video(video_path, images, fps=5)
 
@@ -190,6 +168,7 @@ def run_maniskill2_eval_single_episode(
     os.makedirs(action_root, exist_ok=True)
     action_path = action_root + os.path.basename(action_path)
     model.visualize_epoch(predicted_actions, images, save_path=action_path)
+
     return success == "success"
 
 
@@ -220,7 +199,6 @@ def maniskill2_evaluator(model, args):
                     additional_env_save_tags=args.additional_env_save_tags,
                     obs_camera_name=args.obs_camera_name,
                     logging_dir=args.logging_dir,
-                    save_videos=args.save_videos
                 )
                 if args.obj_variation_mode == "xy":
                     for obj_init_x in args.obj_init_xs:
@@ -233,14 +211,8 @@ def maniskill2_evaluator(model, args):
                                 )
                             )
                 elif args.obj_variation_mode == "episode":
-                    for obj_episode_id in range(
-                        args.obj_episode_range[0], args.obj_episode_range[1]
-                    ):
-                        success_arr.append(
-                            run_maniskill2_eval_single_episode(
-                                obj_episode_id=obj_episode_id, **kwargs
-                            )
-                        )
+                    for obj_episode_id in range(args.obj_episode_range[0], args.obj_episode_range[1]):
+                        success_arr.append(run_maniskill2_eval_single_episode(obj_episode_id=obj_episode_id, **kwargs))
                 else:
                     raise NotImplementedError()
 

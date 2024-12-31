@@ -1,0 +1,8 @@
+Robot Links 
+
+[Actor(name="base_link", id="2"), Actor(name="shoulder_link", id="3"), Actor(name="upper_arm_link", id="4"), Actor(name="upper_forearm_link", id="5"), Actor(name="lower_forearm_link", id="6"), Actor(name="wrist_link", id="7"), Actor(name="gripper_link", id="8"), Actor(name="ee_arm_link", id="9"), Actor(name="gripper_prop_link", id="15"), Actor(name="gripper_bar_link", id="10"), Actor(name="fingers_link", id="11"), Actor(name="left_finger_link", id="14"), Actor(name="right_finger_link", id="13"), Actor(name="ee_gripper_link", id="12")]
+
+
+Active Joints 
+
+['waist', 'shoulder', 'elbow', 'forearm_roll', 'wrist_angle', 'wrist_rotate', 'left_finger', 'right_finger']

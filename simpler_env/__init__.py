@@ -25,6 +25,7 @@ ENVIRONMENTS = [
     "google_robot_place_apple_in_closed_top_drawer",
     "widowx_spoon_on_towel",
     "widowx_carrot_on_plate",
+    "irom_widowx_carrot_on_plate",
     "widowx_stack_cube",
     "widowx_put_eggplant_in_basket",
 ]
@@ -67,6 +68,7 @@ ENVIRONMENT_MAP = {
     "widowx_carrot_on_plate": ("PutCarrotOnPlateInScene-v0", {}),
     "widowx_stack_cube": ("StackGreenCubeOnYellowCubeBakedTexInScene-v0", {}),
     "widowx_put_eggplant_in_basket": ("PutEggplantInBasketScene-v0", {}),
+    "irom_widowx_carrot_on_plate": ("PutCarrotOnPlateInScene-v0_IROM", {"robot": "irom_widowx"})
 }
 
 
