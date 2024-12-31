@@ -413,7 +413,7 @@ if __name__ == "__main__":
         traj_info = json.load(f)
     # with open(actions_log,"r") as f:
     #     actions_info = pkl.load(f)
-    
+    st()
     wandb.login()
     problem_data = dict()
     problem_data = copy.deepcopy(traj_info)

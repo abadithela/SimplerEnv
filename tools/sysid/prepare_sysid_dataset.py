@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
         to_save = []
         episode_steps = list(episode["steps"])
-        st()
+        
         for j, episode_step in enumerate(episode_steps):
             if dataset_name == "fractal20220817_data":
                 if j == 0:
@@ -102,6 +102,7 @@ if __name__ == "__main__":
                     "action_rotation_delta": np.array(episode_step["action"]["rotation_delta"], dtype=np.float64),
                     # 'action_gripper': np.array(episode_step['action']['gripper_closedness_action'], dtype=np.float64), # 1=close; -1=open
                 }
+                
             elif dataset_name == "bridge":
                 mat_transform = np.array(
                     [[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]],
