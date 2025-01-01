@@ -183,7 +183,7 @@ def main(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
                 "qpos": np.array(init_qpos)
             },
         }
-    env_reset_options["obj_init_options"]["episode_id"] = 0
+    env_reset_options["obj_init_options"]["init_xys"] = np.array([env.carrot_center, env.plate]) - np.array([[0.02,0], [0.02,0]])
     obs, info = env.reset(options=env_reset_options)
     image = get_image_from_maniskill2_obs_dict(env, obs)  # np.ndarray of shape (H, W, 3), uint8
     images = [image] # should just be sleep.
@@ -413,7 +413,6 @@ if __name__ == "__main__":
         traj_info = json.load(f)
     # with open(actions_log,"r") as f:
     #     actions_info = pkl.load(f)
-    st()
     wandb.login()
     problem_data = dict()
     problem_data = copy.deepcopy(traj_info)

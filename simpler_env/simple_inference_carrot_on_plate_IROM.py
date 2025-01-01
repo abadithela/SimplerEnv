@@ -10,11 +10,11 @@ Example:
 
 import argparse
 import os
-
+import random
 import mediapy as media
 import numpy as np
 import tensorflow as tf
-
+import json
 import simpler_env
 from simpler_env import ENVIRONMENTS
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
@@ -81,10 +81,39 @@ elif "octo" in args.policy:
 else:
     raise NotImplementedError()
 
+# Gripper initial poses:
+gripper_init_qpos = "/home/apurva/software/RapidEvalPPI/hardware/Octo_runs/robot_init_qpos.json"
+with open(gripper_init_qpos, "r") as f:
+    robot_init_qpos = json.load(f)
+
+# Process the hardware init_qpos
+def process_qpos(hw_qpos):
+    qpos = [hw_qpos[0], hw_qpos[1], hw_qpos[2], hw_qpos[3], hw_qpos[4], hw_qpos[5], hw_qpos[7], hw_qpos[8]]
+    return qpos
+
 # run inference
 success_arr = []
-for ep_id in range(args.n_trajs):
-    obs, reset_info = env.reset()
+num_each_config = 5
+init_configs = ["center" for k in range(num_each_config)]
+init_configs.extend(["left" for k in range(num_each_config)])
+init_configs.extend(["right" for k in range(num_each_config)])
+ep_id = 1
+
+for init_config in init_configs:
+    if init_config == "left":
+        xy_config = np.array([env.carrot_left, env.plate])
+    elif init_config == "right":
+        xy_config = np.array([env.carrot_right, env.plate])
+    else:
+        xy_config = np.array([env.carrot_center, env.plate])
+    try:
+        qpos = random.choice(robot_init_qpos[init_config])
+        qpos = np.array(process_qpos(qpos))
+    except:
+        st()
+    
+    env_reset_options = {"obj_init_options":{"init_xys": xy_config}, "robot_init_options": {"qpos": qpos}}
+    obs, reset_info = env.reset(options=env_reset_options)
     instruction = env.get_language_instruction()
     # for long-horizon environments, we check if the current subtask is the final subtask
     is_final_subtask = env.is_final_subtask() 
@@ -126,6 +155,8 @@ for ep_id in range(args.n_trajs):
     success_arr.append(success)
     print(f"Episode {ep_id} success: {success}")
     media.write_video(f"{logging_dir}/normal_episode_{ep_id}_success_{success}.mp4", images, fps=5)
+    ep_id += 1
+    
 
 print(
     "**Overall Success**",
