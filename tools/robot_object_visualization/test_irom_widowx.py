@@ -39,7 +39,7 @@ def demo(fix_root_link, balance_passive_force):
         print([x.name for x in robot.get_active_joints()], file=f)
 
     print(robot.get_links())
-    robot.set_root_pose(sapien.Pose([0, 0, 0.2], [1, 0, 0, 0]))
+    robot.set_root_pose(sapien.Pose([0, 0.8, 0.2], [1, 0, 0, 0]))
     print([x.name for x in robot.get_active_joints()])
     print(robot.get_qlimits())
 
@@ -56,6 +56,9 @@ def demo(fix_root_link, balance_passive_force):
             0.037,
         ]
     )
+
+    qpos = np.array([-0.006135923322290182, 0.28378644585609436, 0.10277671366930008, 0.012271846644580364, 1.0983302593231201, 0.003067961661145091, 0.03765066713094711, 0.03765066713094711])
+    qpos = np.array([-0.006135923322290182, 0.28378644585609436, 0.10277671366930008, 0.012271846644580364, 1.0983302593231201, 0.003067961661145091, -1.0, 0.0])
     # qpos = np.array([-0.00153398,  0.04448544,  0.21629129, -0.00306796,  1.36524296, 0.,
     #                  0.015, 0.015])
     # qpos = np.array([-0.13192235, -0.76238847,  0.44485444, -0.01994175,  1.7564081,  -0.15953401,

@@ -55,6 +55,7 @@ class OctoInference:
             self.model = OctoModel.load_pretrained(self.model_type)
             self.action_mean = self.model.dataset_statistics[dataset_id]["action"]["mean"]
             self.action_std = self.model.dataset_statistics[dataset_id]["action"]["std"]
+            
         else:
             raise NotImplementedError()
 
@@ -188,7 +189,6 @@ class OctoInference:
             # This is one of the ways to implement gripper actions; we use an alternative implementation below for consistency with real
             # gripper_close_commanded = (current_gripper_action < 0.5)
             # relative_gripper_action = 1 if gripper_close_commanded else -1 # google robot 1 = close; -1 = open
-
             # # if action represents a change in gripper state and gripper is not already sticky, trigger sticky gripper
             # if gripper_close_commanded != self.gripper_is_closed and not self.sticky_action_is_on:
             #     self.sticky_action_is_on = True
