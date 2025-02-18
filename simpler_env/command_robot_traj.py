@@ -58,6 +58,11 @@ def get_args(folder=None):
     return args
 
 # =======================================================
+def get_tcp_pose_at_robot_base(env):
+    tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
+    return tcp_pose_at_robot_base
+
+# =======================================================
 # Main function to control the robot:
 def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
     exp_length = len(recorded_traj)
@@ -285,7 +290,7 @@ def plot_qpos(recorded_traj_dir, recorded_qpos, init_step=0):
 
         plt.savefig(f"{fig_folder}/joint_{name}.pdf", bbox_inches='tight')
 
-def main_ee(init_ee_above_carrot, recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
+def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
     exp_length = len(recorded_traj)
 
     args = get_args(folder=recorded_traj_dir)
@@ -340,6 +345,10 @@ def main_ee(init_ee_above_carrot, recorded_traj, recorded_ee_traj, recorded_traj
     print("robot pose", env.agent.robot.pose)
     print("qpos", env.agent.robot.get_qpos())
     
+    def get_tcp_pose_at_robot_base():
+        tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
+        return tcp_pose_at_robot_base
+    
     #### Go over trajectory:
     timestep = 0
     while timestep < exp_length-2:
@@ -364,35 +373,18 @@ def main_ee(init_ee_above_carrot, recorded_traj, recorded_ee_traj, recorded_traj
         im.save(os.path.join(recorded_traj_dir, f"Sim_IMG_{timestep}.jpeg"))
 
         hw_qpos = process_qpos(recorded_traj_qpos[str(timestep)]) # Hardware qpos is 0 indexed.
-        log_qpos(hw_qpos, logname="real")
+        log_eepos(hw_qpos, logname="real")
 
         timestep += 1
-        qpos = env.agent.robot.get_qpos()
-        log_qpos(qpos.tolist())
+        eepos = get_tcp_pose_at_robot_base()
+        log_eepos(eepos.tolist())
 
-        err_qpos_arm = np.array(hw_qpos[:-2]) - np.array(qpos[:-2])
-        log_qpos(err_qpos_arm, logname="error", links=["waist", "shoulder", "elbow", "forearm", "wrist angle", "wrist rotate"])
-
-        norm_err_qpos= np.linalg.norm(err_qpos_arm)
-        wandb.log({"err_qpos": norm_err_qpos})
-
-        robot_qpos_real_minus_sim.append(err_qpos_arm.tolist())
-        print("ground truth qpos", hw_qpos)
-        print("qpos", qpos)
-        print("error qpos", norm_err_qpos)
-        
-        robot_qpos.append(qpos.tolist())
-        print("reward", reward)
-        print("info", info)
-    with open(os.path.join(recorded_traj_dir, "sim_traj.json"), "w") as f:
-        json.dump(robot_qpos, f)
-    with open(os.path.join(recorded_traj_dir, "hw_qpos_traj_error.json"), "w") as f:
-        json.dump(robot_qpos_real_minus_sim, f)
 
     if debug:
         media.write_video(f"{args.logging_root}/debug_ee_traj.mp4", images, fps=1)
     else:
         media.write_video(f"{args.logging_root}/recorded_ee_traj.mp4", images, fps=1)
+
 
 # =======================================================
 # Sim instructions hardware
@@ -536,6 +528,14 @@ def log_qpos(qpos, logname="sim", links=["waist", "shoulder", "elbow", "forearm"
             wandb.log({key:qpos[k]})
     return qpos
 
+def log_eepos(eepos, logname="sim", links=["x", "y", "z", "roll", "pitch", "yaw"]):
+    if logname:
+        keys = [logname+" "+link_name for link_name in links]
+        for k in range(len(eepos)):
+            key = keys[k]
+            wandb.log({key:eepos[k]})
+    return eepos
+
 # Record animation
 def record_real_animation(image_folder):
     # Get sorted list of images
@@ -623,8 +623,8 @@ def angular_distance(rpy1, rpy2):
 # =======================================================
 # Main function to control the robot:
 if __name__ == "__main__":
-    trial = "trial_102"
-    recorded_traj_dir = f"/home/apurva/software/RapidEvalPPI/hardware/debug_coords/{trial}"
+    trial = "trial_100"
+    recorded_traj_dir = f"/home/apurva/software/RapidEvalPPI/hardware/fixed_policies/{trial}"
     traj_log = os.path.join(recorded_traj_dir, "log.json")
     actions_log = os.path.join(recorded_traj_dir, "actions.pkl")
     image_log = os.path.join(recorded_traj_dir, "images.pkl")

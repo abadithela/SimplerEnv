@@ -25,7 +25,7 @@ from simlogger import SimLogger
 import shutil
 import math
 import itertools
-
+import yaml
 # ============================================================================================ # 
 # Utility Functions 
 def save_experiment_script(logging_dir):
@@ -41,7 +41,7 @@ def save_experiment_script(logging_dir):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="octo-base", choices=["rt1", "octo-base", "octo-small"])
+    parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small"])
     parser.add_argument(
         "--ckpt-path",
         type=str,
@@ -267,5 +267,39 @@ def run_experiments():
         args, logging_dir = get_args() 
         experiment(args, logging_dir,is_dir_light, is_ambient_light, dir_light_position, dir_light_color, ambient_light_color, shadow, dir_light_scale,enable_raytracing)
 
+def find_max_success_rates(base_dir):
+    max_rate = -float('inf')
+    max_folder = None
+    
+    for root, _, files in os.walk(base_dir):
+        if 'sim_log.yaml' in files:
+            yaml_path = os.path.join(root, 'sim_log.yaml')
+            try:
+                with open(yaml_path, 'r') as f:
+                    data = yaml.safe_load(f)
+                    if 'success_rate' in data:
+                        success_rate = float(data['success_rate'])
+                        if success_rate > max_rate:
+                            max_rate = success_rate
+                            max_folder = root
+                    else:
+                        print(f"Warning: 'success_rate' not found in {yaml_path}")
+            except Exception as e:
+                print(f"Error reading {yaml_path}: {e}")
+    
+    return max_folder, max_rate
+
+
+def param_sweep():
+    policy = "octo-small"
+
+    if policy =="octo-base":
+        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-base/octo-base"
+    else:
+        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-small/octo-small"
+    folder, max_success_rate = find_max_success_rates(base_directory)
+    print(f"Highest Success Rate: {max_success_rate}, Folder: {folder}")
+        
 if __name__=="__main__":
-    run_experiments()
+    # run_experiments()
+    param_sweep()
