@@ -57,15 +57,18 @@ def get_args(folder=None):
     args = parser.parse_args()
     return args
 
-# =======================================================
-def get_tcp_pose_at_robot_base(env):
-    tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
-    return tcp_pose_at_robot_base
 
 # =======================================================
 # Main function to control the robot:
 def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
     exp_length = len(recorded_traj)
+    def get_tcp_pose_at_robot_base():
+        tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
+        xyz = tcp_pose_at_robot_base.p.tolist()
+        rot_quat = tcp_pose_at_robot_base.q.tolist()
+        rot_euler = quat2euler(rot_quat)
+        ee_pose = [*xyz, *rot_euler]
+        return ee_pose
 
     args = get_args(folder=recorded_traj_dir)
     os.makedirs(args.logging_root, exist_ok=True)
@@ -117,6 +120,7 @@ def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
     print("robot pose", env.agent.robot.pose)
     print("qpos", env.agent.robot.get_qpos())
     
+    robot_ee_pos =[get_tcp_pose_at_robot_base()]
     #### Go over trajectory:
     timestep = 1
     while timestep < exp_length:
@@ -138,6 +142,12 @@ def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
         log_qpos(qpos.tolist())
         robot_qpos_real_minus_sim.append((np.array(hw_qpos) - np.array(qpos)).tolist())
         robot_qpos.append(qpos.tolist())
+        eepos = get_tcp_pose_at_robot_base()
+
+        robot_ee_pos.append(eepos)
+        
+    with open(os.path.join(recorded_traj_dir, "sim_ee_traj_direct_qpos.json"), "w") as f:
+        json.dump(robot_ee_pos, f)
 
     with open(os.path.join(recorded_traj_dir, "direct_qpos_cmd_sim_traj.json"), "w") as f:
         json.dump(robot_qpos, f)
@@ -182,8 +192,8 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
         env_reset_options = {
             "obj_init_options": {},
             "robot_init_options": {
-                "init_xy": [0.185,0.215], #[0.245,0.22]
-                'init_height': env.scene_table_height + 0.04,
+                "init_xy": [0.195,0.191], #[0.185,0.215], #[0.245,0.22]
+                'init_height': env.scene_table_height + 0.035,
                 "init_rot_quat": init_rot_quat,
                 "qpos": np.array(init_qpos)
             },
@@ -265,8 +275,10 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
     else:
         media.write_video(f"{args.logging_root}/recorded_traj.mp4", images, fps=1)
 
-def plot_qpos(recorded_traj_dir, recorded_qpos, init_step=0):
-    with open(os.path.join(recorded_traj_dir, "sim_traj.json"), "r") as f:
+def plot_qpos(recorded_traj_dir, recorded_qpos, sim_qpos_fn=None, init_step=0):
+    if sim_qpos_fn is None:
+        sim_qpos_fn = "sim_traj"
+    with open(os.path.join(recorded_traj_dir, sim_qpos_fn+".json"), "r") as f:
         sim_qpos = json.load(f)
     hw_qpos = [process_qpos(recorded_traj_qpos[key]) for key in recorded_traj_qpos.keys()]
     hw_qpos = hw_qpos[init_step:]
@@ -288,11 +300,58 @@ def plot_qpos(recorded_traj_dir, recorded_qpos, init_step=0):
         plt.legend()
         plt.title(f"Joint Angle: {name} (rad)")
 
-        plt.savefig(f"{fig_folder}/joint_{name}.pdf", bbox_inches='tight')
+        plt.savefig(f"{fig_folder}/joint_{name}_{sim_qpos_fn}.pdf", bbox_inches='tight')
 
-def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
-    exp_length = len(recorded_traj)
+def plot_eepos(recorded_traj_dir, recorded_ee_traj, cmd_ee_traj, sim_fn = None, init_step=0):
+    '''
+    TODO: Fix EE Pos
+    '''
+    if sim_fn is None:
+        sim_fn = "sim_ee_traj"
+    with open(os.path.join(recorded_traj_dir, sim_fn+".json"), "r") as f:
+        sim_ee_pose = json.load(f)
+    hw_ee_pose = [recorded_ee_traj[key] for key in recorded_ee_traj.keys()]
+    hw_ee_pose = hw_ee_pose[init_step:]
 
+    hw_cmd_ee_pose = [cmd_ee_traj[key] for key in cmd_ee_traj.keys()]
+    hw_cmd_ee_pose = hw_cmd_ee_pose[init_step:]
+
+    coords = ["x", "y", "z", "roll", "pitch", "yaw"]
+    fig_folder = f"{recorded_traj_dir}/action_replay"
+
+    if not os.path.exists(fig_folder):
+        os.makedirs(fig_folder)
+
+    for k, name in enumerate(coords):
+        sim_ee = [sim_eepos_k[k] for sim_eepos_k in sim_ee_pose]
+        real_ee = [hw_eepos_k[k] for hw_eepos_k in hw_ee_pose]
+        real_cmd_ee = [hw_cmd_eepos_k[k] for hw_cmd_eepos_k in hw_cmd_ee_pose]
+        
+        # Plotting the lists
+        plt.figure()
+        plt.plot(sim_ee, marker='o', label='sim')
+        plt.plot(real_ee, marker='s', label='real')
+        plt.plot(real_cmd_ee, marker='^', alpha=0.5, label='real_cmd')
+        # x_cmd = list(range(1, len(real_cmd_ee) + 1))
+        # plt.plot(x_cmd, real_cmd_ee, marker='^', label='real_cmd')
+        plt.legend()
+        if name in ["x", "y", "z"]:
+            plt.title(f"EE Pose: {name} (in m)")
+        elif name in ["roll", "pitch", "yaw"]:
+            plt.title(f"EE Pose: {name} (in rad)")
+        plt.savefig(f"{fig_folder}/ee_{name}_{sim_fn}.pdf", bbox_inches='tight')
+
+def main_ee(init_qpos, recorded_traj_actions, recorded_ee_traj, recorded_traj_dir):
+
+    def get_tcp_pose_at_robot_base():
+        tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
+        xyz = tcp_pose_at_robot_base.p.tolist()
+        rot_quat = tcp_pose_at_robot_base.q.tolist()
+        rot_euler = quat2euler(rot_quat)
+        ee_pose = [*xyz, *rot_euler]
+        return ee_pose
+    
+    exp_length = len(recorded_traj_actions)
     args = get_args(folder=recorded_traj_dir)
     os.makedirs(args.logging_root, exist_ok=True)
 
@@ -302,10 +361,7 @@ def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
     gpus = tf.config.list_physical_devices("GPU")
     if len(gpus) > 0:
         # prevent a single tf process from taking up all the GPU memory
-        tf.config.set_logical_device_configuration(
-            gpus[0],
-            [tf.config.LogicalDeviceConfiguration(memory_limit=args.tf_memory_limit)],
-        )
+        tf.config.set_logical_device_configuration(gpus[0],[tf.config.LogicalDeviceConfiguration(memory_limit=args.tf_memory_limit)],)
 
     # build environment
     env = simpler_env.make(args.task)
@@ -325,7 +381,7 @@ def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
         env_reset_options = {
             "obj_init_options": {},
             "robot_init_options": {
-                "init_xy": [0.245,0.22],
+                "init_xy": [0.195,0.191],
                 'init_height': env.scene_table_height + 0.035,
                 "init_rot_quat": init_rot_quat,
                 "qpos": np.array(init_qpos)
@@ -339,20 +395,12 @@ def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
     im = Image.fromarray(image)
     im.save(os.path.join(recorded_traj_dir, "Sim_IMG_init.jpeg"))
     
-    robot_qpos = [(env.agent.robot.get_qpos()).tolist()]
-    robot_qpos_real_minus_sim = [(np.array(init_qpos) - np.array(robot_qpos[0])).tolist()]
-    print("Reset info:", info)
-    print("robot pose", env.agent.robot.pose)
-    print("qpos", env.agent.robot.get_qpos())
-    
-    def get_tcp_pose_at_robot_base():
-        tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
-        return tcp_pose_at_robot_base
+    robot_ee_pos = [get_tcp_pose_at_robot_base()]
     
     #### Go over trajectory:
     timestep = 0
-    while timestep < exp_length-2:
-        recorded_action=recorded_traj[str(timestep+1)]
+    while timestep <= exp_length-2:
+        recorded_action=recorded_traj_actions[str(timestep+1)]
         print("hardware action", recorded_action)
         action = process_action(recorded_action)
         
@@ -372,13 +420,15 @@ def main_ee(recorded_traj, recorded_ee_traj, recorded_traj_dir, debug=False):
         im = Image.fromarray(image)
         im.save(os.path.join(recorded_traj_dir, f"Sim_IMG_{timestep}.jpeg"))
 
-        hw_qpos = process_qpos(recorded_traj_qpos[str(timestep)]) # Hardware qpos is 0 indexed.
-        log_eepos(hw_qpos, logname="real")
+        hw_ee_pos = recorded_ee_traj[str(timestep)] # Hardware qpos is 0 indexed.
 
         timestep += 1
         eepos = get_tcp_pose_at_robot_base()
-        log_eepos(eepos.tolist())
 
+        robot_ee_pos.append(eepos)
+        
+    with open(os.path.join(recorded_traj_dir, "sim_ee_traj.json"), "w") as f:
+        json.dump(robot_ee_pos, f)
 
     if debug:
         media.write_video(f"{args.logging_root}/debug_ee_traj.mp4", images, fps=1)
@@ -622,9 +672,10 @@ def angular_distance(rpy1, rpy2):
 
 # =======================================================
 # Main function to control the robot:
+# Trial 70 and trial 110 in fixed policies
 if __name__ == "__main__":
-    trial = "trial_100"
-    recorded_traj_dir = f"/home/apurva/software/RapidEvalPPI/hardware/fixed_policies/{trial}"
+    trial = "trial_7"
+    recorded_traj_dir = f"/home/apurva/software/RapidEvalPPI/hardware/random_no_grasp_no_contact/{trial}"
     traj_log = os.path.join(recorded_traj_dir, "log.json")
     actions_log = os.path.join(recorded_traj_dir, "actions.pkl")
     image_log = os.path.join(recorded_traj_dir, "images.pkl")
@@ -654,7 +705,7 @@ if __name__ == "__main__":
     # Recorded actions at time "t" (are applied on robot state at t-1) result in the recorded qpos at time "t". 
     # Ignore action["0"] and directly set the robot to be above the carrot at qpos["0"]
     recorded_ee_traj = traj_info["traj_ee_state"]
-
+    
     init_qpos_above_carrot = recorded_traj_qpos['0']
     init_ee_above_carrot = recorded_ee_traj['0']
 
@@ -667,17 +718,23 @@ if __name__ == "__main__":
         position_error = np.linalg.norm(cmd_state[0:3] - act_state[0:3])
         angle_error = angular_distance(cmd_state[3:6], act_state[3:6])
         gripper_error =  cmd_state[6] - act_state[6]
-        
+
     if exp == "replay":
-        carrot_pose = traj_info['carrot_pos']
+        try:
+            carrot_pose = traj_info['carrot_pos']
+        except:
+            carrot_pose = traj_info["initial_pos"]
         main(carrot_pose, init_qpos_above_carrot, recorded_traj_actions, recorded_traj_qpos,recorded_traj_dir, debug=debug)
         plot_qpos(recorded_traj_dir, recorded_traj_qpos)
     elif exp == "rollout":
         main_sim_rollout(init_qpos_above_carrot,recorded_traj_dir, debug=debug)
     elif exp == "ee":
-        main_ee(init_ee_above_carrot, recorded_traj_actions, recorded_ee_traj, recorded_traj_dir)
+        main_ee(init_qpos_above_carrot, recorded_traj_actions, recorded_ee_traj, recorded_traj_dir)
+        plot_eepos(recorded_traj_dir, recorded_ee_traj,ee_state_cmd)
     elif exp == "qpos":
         main_qpos(init_qpos_above_carrot, recorded_traj_actions, recorded_traj_qpos,recorded_traj_dir)
+        plot_qpos(recorded_traj_dir, recorded_traj_qpos, sim_qpos_fn="direct_qpos_cmd_sim_traj")
+        plot_eepos(recorded_traj_dir, recorded_ee_traj,ee_state_cmd, sim_fn="sim_ee_traj_direct_qpos")
 
     # Record real animation:
     record_real_animation(image_folder=recorded_traj_dir)

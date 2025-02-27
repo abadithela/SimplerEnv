@@ -41,7 +41,7 @@ def save_experiment_script(logging_dir):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small"])
+    parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small", "openvla"])
     parser.add_argument(
         "--ckpt-path",
         type=str,
@@ -58,7 +58,7 @@ def get_args():
     parser.add_argument("--dirname-end", type=str, default=None)
     args = parser.parse_args()
 
-    if args.policy in ["octo-base", "octo-small"]:
+    if args.policy in ["octo-base", "octo-small", "openvla"]:
         if args.ckpt_path in [None, "None"] or "rt_1_x" in args.ckpt_path:
             args.ckpt_path = args.policy
         if args.ckpt_path[-1] == "/":
@@ -127,6 +127,9 @@ def build_policy(args, sim_log):
         from simpler_env.policies.octo.octo_model import OctoInference
         model = OctoInference(model_type=args.ckpt_path, policy_setup=policy_setup, init_rng=init_rng)
         sim_log.add_entry("policy_init_rng", init_rng)
+    elif "openvla" in args.policy:
+        from simpler_env.policies.openvla.openvla_model import OpenVLAInference
+        model = OpenVLAInference(policy_setup=policy_setup)
     else:
         raise NotImplementedError()
     return model
@@ -251,16 +254,17 @@ def experiment(args, logging_dir, is_dir_light, is_ambient_light, dir_light_posi
 # ============================================================================================ # 
 # Main experiment:
 def run_experiments():
-    LIGHT_COLOR_VAL = [0.3, 0.5, 1.0, 2.2]
+    DIR_LIGHT_COLOR_VAL = [0.3, 0.5]
+    AMB_LIGHT_COLOR_VAL = [0.5, 1.0]
 
-    is_dir_light_vals = [True, False]
-    is_amb_light_vals = [True, False]
+    is_dir_light_vals = [True]
+    is_amb_light_vals = [True]
     enable_rt_vals = [True, False]
     enable_shadow_vals = [True, False]
     dir_light_pose_vals = [[-0.5, 0, -math.sqrt(3)/2]]
-    dir_light_color_vals =  [[v,v,v] for v in LIGHT_COLOR_VAL]
-    amb_light_color_vals = [[v,v,v] for v in LIGHT_COLOR_VAL]
-    dir_light_scale_vals = [5.0, 10.0]
+    dir_light_color_vals =  [[v,v,v] for v in DIR_LIGHT_COLOR_VAL]
+    amb_light_color_vals = [[v,v,v] for v in AMB_LIGHT_COLOR_VAL]
+    dir_light_scale_vals = [5.0]
 
     for is_dir_light, is_ambient_light, dir_light_position, dir_light_color, ambient_light_color, shadow, dir_light_scale,enable_raytracing in itertools.product(
         is_dir_light_vals, is_amb_light_vals, dir_light_pose_vals, dir_light_color_vals, amb_light_color_vals, enable_shadow_vals, dir_light_scale_vals,enable_rt_vals):
@@ -295,11 +299,13 @@ def param_sweep():
 
     if policy =="octo-base":
         base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-base/octo-base"
-    else:
+    elif policy =="octo-small":
         base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-small/octo-small"
+    elif policy =="openvla":
+        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/openvla/openvla"
     folder, max_success_rate = find_max_success_rates(base_directory)
     print(f"Highest Success Rate: {max_success_rate}, Folder: {folder}")
         
 if __name__=="__main__":
-    # run_experiments()
-    param_sweep()
+    run_experiments()
+    # param_sweep()
