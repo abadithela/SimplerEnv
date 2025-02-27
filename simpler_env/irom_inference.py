@@ -27,6 +27,9 @@ import math
 import itertools
 import yaml
 # ============================================================================================ # 
+EXP_DIR = "/home/apurva/software/RapidEvalPPI/experiments/results_simple_random_eval"
+
+# ============================================================================================ # 
 # Utility Functions 
 def save_experiment_script(logging_dir):
     """
@@ -52,7 +55,7 @@ def get_args():
         default="irom_widowx_carrot_on_plate",
         choices=ENVIRONMENTS,
     )
-    parser.add_argument("--logging-root", type=str, default="./results_simple_random_eval")
+    parser.add_argument("--logging-root", type=str, default=f"{EXP_DIR}/results_simple_random_eval")
     parser.add_argument("--tf-memory-limit", type=int, default=3072)
     parser.add_argument("--n-trajs", type=int, default=10)
     parser.add_argument("--dirname-end", type=str, default=None)
@@ -295,17 +298,17 @@ def find_max_success_rates(base_dir):
 
 
 def param_sweep():
-    policy = "octo-small"
+    policy = "openvla"
 
     if policy =="octo-base":
-        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-base/octo-base"
+        base_directory = f"{EXP_DIR}/irom_widowx_carrot_on_plate/octo-base/octo-base"
     elif policy =="octo-small":
-        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/octo-small/octo-small"
+        base_directory = f"{EXP_DIR}/irom_widowx_carrot_on_plate/octo-small/octo-small"
     elif policy =="openvla":
-        base_directory = "/home/apurva/software/RapidEvalPPI/SimplerEnv/simpler_env/results_simple_random_eval/irom_widowx_carrot_on_plate/openvla/openvla"
+        base_directory = f"{EXP_DIR}/irom_widowx_carrot_on_plate/openvla/openvla"
     folder, max_success_rate = find_max_success_rates(base_directory)
     print(f"Highest Success Rate: {max_success_rate}, Folder: {folder}")
         
 if __name__=="__main__":
-    run_experiments()
-    # param_sweep()
+    # run_experiments()
+    param_sweep()
