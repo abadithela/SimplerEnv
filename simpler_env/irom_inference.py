@@ -26,6 +26,7 @@ import shutil
 import math
 import itertools
 import yaml
+import torch
 # ============================================================================================ # 
 EXP_DIR = "/home/apurva/software/RapidEvalPPI/experiments/results_simple_random_eval"
 
@@ -42,7 +43,7 @@ def save_experiment_script(logging_dir):
     os.makedirs(logging_dir, exist_ok=True)  # Ensure folder exists
     shutil.copy(script_path, os.path.join(logging_dir, os.path.basename(script_path)))
 
-def get_args():
+def get_args(logging_dir_optional=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="rt1", choices=["rt1", "octo-base", "octo-small", "openvla"])
     parser.add_argument(
@@ -55,7 +56,7 @@ def get_args():
         default="irom_widowx_carrot_on_plate",
         choices=ENVIRONMENTS,
     )
-    parser.add_argument("--logging-root", type=str, default=f"{EXP_DIR}/results_simple_random_eval")
+    parser.add_argument("--logging-root", type=str, default=f"{EXP_DIR}")
     parser.add_argument("--tf-memory-limit", type=int, default=3072)
     parser.add_argument("--n-trajs", type=int, default=10)
     parser.add_argument("--dirname-end", type=str, default=None)
@@ -76,10 +77,19 @@ def get_args():
 
     # Trial ID for accounting for variations.
     sim_id = ''.join(random.choices(string.ascii_letters + string.digits, k=4)) 
+
+    if logging_dir_optional is not None:
+        logging_dir = os.path.join(logging_dir, logging_dir_optional)
+
     while os.path.exists(os.path.join(logging_dir, sim_id)):
         sim_id = ''.join(random.choices(string.ascii_letters + string.digits, k=4))
-
     logging_dir = os.path.join(logging_dir, sim_id)
+
+    # if logging_dir_optional is not None:
+    #     logging_dir = os.path.join(logging_dir, logging_dir_optional, sim_id)
+    # else:
+    #     logging_dir = os.path.join(logging_dir, sim_id)
+
     os.makedirs(logging_dir)
     return args, logging_dir
 
@@ -141,7 +151,7 @@ def build_policy(args, sim_log):
 # Run Inference
 def run_inference(env, model, logging_dir, **light_kwargs):
     success_arr = []
-    num_each_config = 10
+    num_each_config = 100
     init_configs = ["center" for k in range(num_each_config)]
     init_configs.extend(["left" for k in range(num_each_config)])
     init_configs.extend(["right" for k in range(num_each_config)])
@@ -201,7 +211,8 @@ def run_inference(env, model, logging_dir, **light_kwargs):
         episode_stats = info.get("episode_stats", {})
         success_arr.append(success)
         print(f"Episode {ep_id} success: {success}")
-        media.write_video(f"{logging_dir}/normal_episode_{ep_id}_success_{success}.mp4", images, fps=1)
+        if success or ep_id%10 == 0:
+            media.write_video(f"{logging_dir}/normal_episode_{ep_id}_success_{success}.mp4", images, fps=1)
         ep_id += 1
         
 
@@ -274,6 +285,10 @@ def run_experiments():
         args, logging_dir = get_args() 
         experiment(args, logging_dir,is_dir_light, is_ambient_light, dir_light_position, dir_light_color, ambient_light_color, shadow, dir_light_scale,enable_raytracing)
 
+def run_default_experiment():
+    args, logging_dir = get_args(logging_dir_optional="rechecking_octo_base") 
+    experiment(args, logging_dir,is_dir_light=True, is_ambient_light=True, dir_light_position=[-0.5, 0, -math.sqrt(3)/2], dir_light_color=[0.3,0.3,0.3], ambient_light_color=[0.5,0.5,0.5], shadow=False, dir_light_scale=5,enable_raytracing=True)
+
 def find_max_success_rates(base_dir):
     max_rate = -float('inf')
     max_folder = None
@@ -311,4 +326,5 @@ def param_sweep():
         
 if __name__=="__main__":
     # run_experiments()
-    param_sweep()
+    # param_sweep()
+    run_default_experiment()
