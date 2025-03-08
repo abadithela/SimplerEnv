@@ -151,7 +151,7 @@ def build_policy(args, sim_log):
 # Run Inference
 def run_inference(env, model, logging_dir, **light_kwargs):
     success_arr = []
-    num_each_config = 100
+    num_each_config = 30
     init_configs = ["center" for k in range(num_each_config)]
     init_configs.extend(["left" for k in range(num_each_config)])
     init_configs.extend(["right" for k in range(num_each_config)])
@@ -160,12 +160,16 @@ def run_inference(env, model, logging_dir, **light_kwargs):
     env.add_lighting_params(**light_kwargs)
 
     for init_config in init_configs:
+        plate_pose = env.plate
         if init_config == "left":
-            xy_config = np.array([env.carrot_left, env.plate])
+            carrot_pose = env.carrot_left
         elif init_config == "right":
-            xy_config = np.array([env.carrot_right, env.plate])
+            carrot_pose = env.carrot_right
         else:
-            xy_config = np.array([env.carrot_center, env.plate])
+            carrot_pose = env.carrot_center
+        # plate_pose += np.array([np.random.normal(0,0.01), np.random.normal(0,0.01)])
+        # carrot_pose += np.array([np.random.normal(0,0.01), np.random.normal(0,0.01)])
+        xy_config = np.array([carrot_pose, plate_pose])
         qpos = random.choice(robot_init_qpos[init_config])
         qpos = np.array(process_qpos(qpos))
         

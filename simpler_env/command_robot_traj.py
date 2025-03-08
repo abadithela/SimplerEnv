@@ -102,8 +102,8 @@ def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
         env_reset_options = {
             "obj_init_options": {},
             "robot_init_options": {
-                "init_xy": [0.185,0.22],
-                'init_height': env.scene_table_height + 0.045,
+                "init_xy": [0.194,0.191],
+                'init_height': env.scene_table_height + 0.035,
                 "init_rot_quat": init_rot_quat,
                 "qpos": np.array(init_qpos)
             },
@@ -215,6 +215,8 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
     log_qpos(qpos.tolist())
     
     robot_qpos = [(env.agent.robot.get_qpos()).tolist()]
+    sim_robot_qpos_cmds = [[float(qcmd) for qcmd in list(env.agent.get_qpos_command)]]
+
     robot_qpos_real_minus_sim = [(np.array(init_qpos) - np.array(robot_qpos[0])).tolist()]
     print("Reset info:", info)
     print("robot pose", env.agent.robot.pose)
@@ -228,13 +230,13 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
         action = process_action(recorded_action)
         
         # Debug:
-        if debug: 
-            if timestep <= 5:
-                toy_action = [0,-0.01, 0, 0,0,0,0] # Applying just a yaw command
-            else: 
-                toy_action = [0,0,0.0,0, 0.0, -0.01,0] # Applying just a yaw command
-            action = process_action(toy_action)
-            print("action", action)
+        # if debug: 
+        #     if timestep <= 5:
+        #         toy_action = [0,-0.01, 0, 0,0,0,0] # Applying just a yaw command
+        #     else: 
+        #         toy_action = [0,0,0.0,0, 0.0, -0.01,0] # Applying just a yaw command
+        #     action = process_action(toy_action)
+        #     print("action", action)
         
         obs, reward, success, truncated, info = env.step(np.concatenate([action["world_vector"], action["rot_axangle"], action["gripper"]]),)
         
@@ -246,6 +248,7 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
         hw_qpos = process_qpos(recorded_traj_qpos[str(timestep)]) # Hardware qpos is 0 indexed.
         log_qpos(hw_qpos, logname="real")
 
+        sim_cmd_qpos = env.agent.get_qpos_command
         qpos = env.agent.robot.get_qpos()
         log_qpos(qpos.tolist())
 
@@ -263,10 +266,14 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
         print("error qpos", norm_err_qpos)
         
         robot_qpos.append(qpos.tolist())
+        sim_robot_qpos_cmds.append([float(qcmd) for qcmd in list(env.agent.get_qpos_command)])
         print("reward", reward)
         print("info", info)
+
     with open(os.path.join(recorded_traj_dir, "sim_traj.json"), "w") as f:
         json.dump(robot_qpos, f)
+    with open(os.path.join(recorded_traj_dir, "sim_qpos_cmds_traj.json"), "w") as f:
+        json.dump(sim_robot_qpos_cmds, f)
     with open(os.path.join(recorded_traj_dir, "hw_qpos_traj_error.json"), "w") as f:
         json.dump(robot_qpos_real_minus_sim, f)
 
@@ -274,72 +281,6 @@ def main(carrot_pose, init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_
         media.write_video(f"{args.logging_root}/debug_traj.mp4", images, fps=1)
     else:
         media.write_video(f"{args.logging_root}/recorded_traj.mp4", images, fps=1)
-
-def plot_qpos(recorded_traj_dir, recorded_qpos, sim_qpos_fn=None, init_step=0):
-    if sim_qpos_fn is None:
-        sim_qpos_fn = "sim_traj"
-    with open(os.path.join(recorded_traj_dir, sim_qpos_fn+".json"), "r") as f:
-        sim_qpos = json.load(f)
-    hw_qpos = [process_qpos(recorded_traj_qpos[key]) for key in recorded_traj_qpos.keys()]
-    hw_qpos = hw_qpos[init_step:]
-
-    joints = ["waist", "shoulder", "elbow", "forearm", "wrist angle", "wrist rotate", "left finger", "right finger"]
-    fig_folder = f"{recorded_traj_dir}/action_replay"
-
-    if not os.path.exists(fig_folder):
-        os.makedirs(fig_folder)
-
-    for k, name in enumerate(joints):
-        sim_joint = [sim_qpos_k[k] for sim_qpos_k in sim_qpos]
-        real_joint = [hw_qpos_k[k] for hw_qpos_k in hw_qpos]
-        
-        # Plotting the lists
-        plt.figure()
-        plt.plot(sim_joint, marker='o', label='sim')
-        plt.plot(real_joint, marker='s', label='real')
-        plt.legend()
-        plt.title(f"Joint Angle: {name} (rad)")
-
-        plt.savefig(f"{fig_folder}/joint_{name}_{sim_qpos_fn}.pdf", bbox_inches='tight')
-
-def plot_eepos(recorded_traj_dir, recorded_ee_traj, cmd_ee_traj, sim_fn = None, init_step=0):
-    '''
-    TODO: Fix EE Pos
-    '''
-    if sim_fn is None:
-        sim_fn = "sim_ee_traj"
-    with open(os.path.join(recorded_traj_dir, sim_fn+".json"), "r") as f:
-        sim_ee_pose = json.load(f)
-    hw_ee_pose = [recorded_ee_traj[key] for key in recorded_ee_traj.keys()]
-    hw_ee_pose = hw_ee_pose[init_step:]
-
-    hw_cmd_ee_pose = [cmd_ee_traj[key] for key in cmd_ee_traj.keys()]
-    hw_cmd_ee_pose = hw_cmd_ee_pose[init_step:]
-
-    coords = ["x", "y", "z", "roll", "pitch", "yaw"]
-    fig_folder = f"{recorded_traj_dir}/action_replay"
-
-    if not os.path.exists(fig_folder):
-        os.makedirs(fig_folder)
-
-    for k, name in enumerate(coords):
-        sim_ee = [sim_eepos_k[k] for sim_eepos_k in sim_ee_pose]
-        real_ee = [hw_eepos_k[k] for hw_eepos_k in hw_ee_pose]
-        real_cmd_ee = [hw_cmd_eepos_k[k] for hw_cmd_eepos_k in hw_cmd_ee_pose]
-        
-        # Plotting the lists
-        plt.figure()
-        plt.plot(sim_ee, marker='o', label='sim')
-        plt.plot(real_ee, marker='s', label='real')
-        plt.plot(real_cmd_ee, marker='^', alpha=0.5, label='real_cmd')
-        # x_cmd = list(range(1, len(real_cmd_ee) + 1))
-        # plt.plot(x_cmd, real_cmd_ee, marker='^', label='real_cmd')
-        plt.legend()
-        if name in ["x", "y", "z"]:
-            plt.title(f"EE Pose: {name} (in m)")
-        elif name in ["roll", "pitch", "yaw"]:
-            plt.title(f"EE Pose: {name} (in rad)")
-        plt.savefig(f"{fig_folder}/ee_{name}_{sim_fn}.pdf", bbox_inches='tight')
 
 def main_ee(init_qpos, recorded_traj_actions, recorded_ee_traj, recorded_traj_dir):
 
@@ -381,7 +322,7 @@ def main_ee(init_qpos, recorded_traj_actions, recorded_ee_traj, recorded_traj_di
         env_reset_options = {
             "obj_init_options": {},
             "robot_init_options": {
-                "init_xy": [0.195,0.191],
+                "init_xy": [0.194,0.191],
                 'init_height': env.scene_table_height + 0.035,
                 "init_rot_quat": init_rot_quat,
                 "qpos": np.array(init_qpos)
@@ -405,16 +346,16 @@ def main_ee(init_qpos, recorded_traj_actions, recorded_ee_traj, recorded_traj_di
         action = process_action(recorded_action)
         
         # Debug:
-        if debug: 
-            if timestep <= 5:
-                toy_action = [0,0,-0.01,0,0,-0.01,0] # Applying just a yaw command
-            else: 
-                toy_action = [0,0,0,0, 0,-0.01,0] # Applying just a yaw command
-            action = process_action(toy_action)
-            print("action", action)
+        # if debug: 
+        #     if timestep <= 5:
+        #         toy_action = [0,0,-0.01,0,0,-0.01,0] # Applying just a yaw command
+        #     else: 
+        #         toy_action = [0,0,0,0, 0,-0.01,0] # Applying just a yaw command
+        #     action = process_action(toy_action)
+        #     print("action", action)
     
         obs, reward, success, truncated, info = env.step(np.concatenate([action["world_vector"], action["rot_axangle"], action["gripper"]]),)
-        
+        st()
         image = get_image_from_maniskill2_obs_dict(env, obs)
         images.append(image)
         im = Image.fromarray(image)
@@ -435,6 +376,88 @@ def main_ee(init_qpos, recorded_traj_actions, recorded_ee_traj, recorded_traj_di
     else:
         media.write_video(f"{args.logging_root}/recorded_ee_traj.mp4", images, fps=1)
 
+def plot_qpos(recorded_traj_dir, recorded_qpos, qpos_cmd =None, sim_qpos_fn=None, init_step=0):
+    if sim_qpos_fn is None:
+        sim_qpos_fn = "sim_traj"
+        sim_qpos_cmd_fn  = "sim_qpos_cmds_traj"
+
+    with open(os.path.join(recorded_traj_dir, sim_qpos_fn+".json"), "r") as f:
+        sim_qpos = json.load(f)
+    hw_qpos = [process_qpos(recorded_traj_qpos[key]) for key in recorded_traj_qpos.keys()]
+    hw_qpos = hw_qpos[init_step:]
+
+    if qpos_cmd is not None:
+        hw_qpos_cmd = [process_qpos(qpos_cmd[key]) for key in qpos_cmd.keys()]
+        hw_qpos_cmd = hw_qpos_cmd[init_step:]
+
+        with open(os.path.join(recorded_traj_dir, sim_qpos_cmd_fn+".json"), "r") as f:
+            sim_qpos_cmd = json.load(f)
+
+    joints = ["waist", "shoulder", "elbow", "forearm", "wrist angle", "wrist rotate", "left finger", "right finger"]
+    fig_folder = f"{recorded_traj_dir}/action_replay"
+
+    if not os.path.exists(fig_folder):
+        os.makedirs(fig_folder)
+
+    for k, name in enumerate(joints):
+        sim_joint = [sim_qpos_k[k] for sim_qpos_k in sim_qpos]
+        real_joint = [hw_qpos_k[k] for hw_qpos_k in hw_qpos]
+        
+        # Plotting the lists
+        plt.figure()
+        plt.plot(sim_joint, marker='o', label='sim')
+        plt.plot(real_joint, marker='s', label='real')
+        
+        plt.title(f"Joint Angle: {name} (rad)")
+
+        if qpos_cmd is not None:
+            if name != "left finger" and name!="right finger":
+                real_cmd = [hw_qpos_cmd_k[k] for hw_qpos_cmd_k in hw_qpos_cmd]
+                plt.plot(real_cmd, marker='^', label='real_cmd')
+
+                sim_cmd = [sim_qpos_cmd_k[k] for sim_qpos_cmd_k in sim_qpos_cmd]
+                plt.plot(sim_cmd, marker='s', label='sim_cmd')
+        plt.legend()
+        plt.savefig(f"{fig_folder}/joint_{name}_{sim_qpos_fn}.pdf", bbox_inches='tight')
+
+def plot_eepos(recorded_traj_dir, recorded_ee_traj, cmd_ee_traj, sim_fn = None, init_step=0):
+    '''
+    TODO: Fix EE Pos
+    '''
+    if sim_fn is None:
+        sim_fn = "sim_ee_traj"
+    with open(os.path.join(recorded_traj_dir, sim_fn+".json"), "r") as f:
+        sim_ee_pose = json.load(f)
+    hw_ee_pose = [recorded_ee_traj[key] for key in recorded_ee_traj.keys()]
+    hw_ee_pose = hw_ee_pose[init_step:]
+
+    hw_cmd_ee_pose = [cmd_ee_traj[key] for key in cmd_ee_traj.keys()]
+    hw_cmd_ee_pose = hw_cmd_ee_pose[init_step:]
+
+    coords = ["x", "y", "z", "roll", "pitch", "yaw"]
+    fig_folder = f"{recorded_traj_dir}/action_replay"
+
+    if not os.path.exists(fig_folder):
+        os.makedirs(fig_folder)
+
+    for k, name in enumerate(coords):
+        sim_ee = [sim_eepos_k[k] for sim_eepos_k in sim_ee_pose]
+        real_ee = [hw_eepos_k[k] for hw_eepos_k in hw_ee_pose]
+        real_cmd_ee = [hw_cmd_eepos_k[k] for hw_cmd_eepos_k in hw_cmd_ee_pose]
+        
+        # Plotting the lists
+        plt.figure()
+        plt.plot(sim_ee, marker='o', label='sim')
+        plt.plot(real_ee, marker='s', label='real')
+        plt.plot(real_cmd_ee, marker='^', alpha=0.5, label='real_cmd')
+        # x_cmd = list(range(1, len(real_cmd_ee) + 1))
+        # plt.plot(x_cmd, real_cmd_ee, marker='^', label='real_cmd')
+        plt.legend()
+        if name in ["x", "y", "z"]:
+            plt.title(f"EE Pose: {name} (in m)")
+        elif name in ["roll", "pitch", "yaw"]:
+            plt.title(f"EE Pose: {name} (in rad)")
+        plt.savefig(f"{fig_folder}/ee_{name}_{sim_fn}.pdf", bbox_inches='tight')
 
 # =======================================================
 # Sim instructions hardware
@@ -567,7 +590,10 @@ def main_sim_rollout(init_qpos, recorded_traj_dir, debug=True):
 # qpos reading from the robot includes: [waist, shoulder, elbow, forearm, wrist angle, wrist rotate, gripper, left finger, right finger]
 # Simpler qpos requires: [waist, shoulder, elbow, forearm, wrist angle, wrist rotate, left finger, right finger]
 def process_qpos(hw_qpos):
-    qpos = [hw_qpos[0], hw_qpos[1], hw_qpos[2], hw_qpos[3], hw_qpos[4], hw_qpos[5], hw_qpos[7], -1*hw_qpos[8]]
+    if len(hw_qpos) > 6:
+        qpos = [hw_qpos[0], hw_qpos[1], hw_qpos[2], hw_qpos[3], hw_qpos[4], hw_qpos[5], hw_qpos[7], -1*hw_qpos[8]]
+    else:
+        qpos = [hw_qpos[0], hw_qpos[1], hw_qpos[2], hw_qpos[3], hw_qpos[4], hw_qpos[5]] # No processing needed
     return qpos
 
 def log_qpos(qpos, logname="sim", links=["waist", "shoulder", "elbow", "forearm", "wrist angle", "wrist rotate", "left finger", "right finger"]):
@@ -625,8 +651,8 @@ def process_action(hw_action):
     action["world_vector"] = raw_action["world_vector"] * action_scale
     action_rotation_delta = np.asarray(raw_action["rotation_delta"], dtype=np.float64)
 
-    # According to the default rotation of the Octo Policy:
-    roll, pitch, yaw = action_rotation_delta # yaw pitch roll for the actions returned by Octo on hardware!
+    # Policy outputs roll, pitch, yaw of EE in Space/Base Frame
+    roll, pitch, yaw = action_rotation_delta # 
     action_rotation_ax, action_rotation_angle = euler2axangle(roll, pitch, yaw)
     action_rotation_axangle = action_rotation_ax * action_rotation_angle
     action["rot_axangle"] = action_rotation_axangle * action_scale
@@ -634,13 +660,6 @@ def process_action(hw_action):
     action["gripper"] = (2.0 * (raw_action["open_gripper"] > 0.5) - 1.0)  # binarize gripper action to 1 (open) and -1 (close)
     action["terminate_episode"] = np.array([0.0])
 
-    wandb.log({"act_dx": action["world_vector"][0]})
-    wandb.log({"act_dy": action["world_vector"][1]})
-    wandb.log({"act_dz": action["world_vector"][2]})
-    wandb.log({"act_droll": action["rot_axangle"][0]})
-    wandb.log({"act_dpitch": action["rot_axangle"][1]})
-    wandb.log({"act_dyaw": action["rot_axangle"][2]})
-    wandb.log({"act_dgripper": action["gripper"]})
     return action
 
 #=======================================================
@@ -674,7 +693,7 @@ def angular_distance(rpy1, rpy2):
 # Main function to control the robot:
 # Trial 70 and trial 110 in fixed policies
 if __name__ == "__main__":
-    trial = "trial_7"
+    trial = "trial_27"
     recorded_traj_dir = f"/home/apurva/software/RapidEvalPPI/hardware/random_no_grasp_no_contact/{trial}"
     traj_log = os.path.join(recorded_traj_dir, "log.json")
     actions_log = os.path.join(recorded_traj_dir, "actions.pkl")
@@ -710,6 +729,7 @@ if __name__ == "__main__":
     init_ee_above_carrot = recorded_ee_traj['0']
 
     ee_state_cmd = traj_info["ee_state_cmd"]
+    qpos_cmd = traj_info["qpos_cmd"]
     ee_traj = traj_info["traj_ee_state"]
     for k in ee_state_cmd.keys():
         ee_error_state = traj_info["traj_err"][k]
@@ -725,7 +745,7 @@ if __name__ == "__main__":
         except:
             carrot_pose = traj_info["initial_pos"]
         main(carrot_pose, init_qpos_above_carrot, recorded_traj_actions, recorded_traj_qpos,recorded_traj_dir, debug=debug)
-        plot_qpos(recorded_traj_dir, recorded_traj_qpos)
+        plot_qpos(recorded_traj_dir, recorded_traj_qpos, qpos_cmd)
     elif exp == "rollout":
         main_sim_rollout(init_qpos_above_carrot,recorded_traj_dir, debug=debug)
     elif exp == "ee":

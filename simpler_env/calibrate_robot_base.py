@@ -22,6 +22,7 @@ from PIL import Image
 from simpler_env.utils.env.observation_utils import get_image_from_maniskill2_obs_dict
 from simpler_env import ENVIRONMENTS
 import matplotlib.animation as animation
+from sapien.core import Pose
 
 def get_args(folder=None):
     parser = argparse.ArgumentParser()
@@ -49,7 +50,7 @@ def process_qpos(hw_qpos):
     qpos = [hw_qpos[0], hw_qpos[1], hw_qpos[2], hw_qpos[3], hw_qpos[4], hw_qpos[5], hw_qpos[7], -1*hw_qpos[8]]
     return qpos
 
-def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
+def set_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
     exp_length = len(recorded_traj)
     def get_tcp_pose_at_robot_base():
         tcp_pose_at_robot_base = env.agent.robot.pose.inv() * env.tcp.pose
@@ -63,6 +64,7 @@ def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
     os.makedirs(args.logging_root, exist_ok=True)
 
     os.environ["DISPLAY"] = ""
+
     # prevent a single jax process from taking up all the GPU memory
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     gpus = tf.config.list_physical_devices("GPU")
@@ -91,15 +93,16 @@ def main_qpos(init_qpos, recorded_traj,recorded_traj_qpos,recorded_traj_dir):
         env_reset_options = {
             "obj_init_options": {},
             "robot_init_options": {
-                "init_xy": [0.185,0.22],
-                'init_height': env.scene_table_height + 0.045,
+                "init_xy": [0.194,0.191],
+                'init_height': env.scene_table_height + 0.035,
                 "init_rot_quat": init_rot_quat,
                 "qpos": np.array(init_qpos)
             },
         }
+
     env_reset_options["obj_init_options"]["init_xys"] = np.array([env.carrot_center, env.plate]) - np.array([[0.10,0.01], [0,0]])
     obs, info = env.reset(options=env_reset_options)
-    image = get_image_from_maniskill2_obs_dict(env, obs)  # np.ndarray of shape (H, W, 3), uint8
+    image = get_image_from_maniskill2_obs_dict(env, obs) # np.ndarray of shape (H, W, 3), uint8
     images = [image] # should just be sleep.
     images = []
     
